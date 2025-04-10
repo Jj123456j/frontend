@@ -813,7 +813,34 @@ setTimeout(() => {
 
 // 好友列表排序
 const sortedfriends = computed(() => {
-  return friends.value.slice().sort((a, b) => a.id - b.id);
+  return friends.value.slice().sort((a, b) => {
+    // 定义时间权重
+    const timeWeights: Record<string, number> = {
+      "刚刚": 0,
+      "今天": 1,
+      "昨天": 2,
+      "前天": 3,
+      "上周": 4,
+    };
+    
+    // 获取权重值
+    const weightA = timeWeights[a.lastMessageTime] || 5;
+    const weightB = timeWeights[b.lastMessageTime] || 5;
+    
+    // 如果都是特殊时间文本
+    if (weightA !== 5 && weightB !== 5) {
+      return weightA - weightB;
+    }
+    
+    // 尝试解析为时间
+    try {
+      const timeA = new Date(`2000/01/01 ${a.lastMessageTime}`).getTime();
+      const timeB = new Date(`2000/01/01 ${b.lastMessageTime}`).getTime();
+      return timeB - timeA;
+    } catch {
+      return 0;
+    }
+  });
 });
 
 // 在组件挂载时初始化
