@@ -175,6 +175,35 @@
             style="display: none"
             @change="handleVideoUpload"
           />
+          <div class="media-buttons"></div>
+          <!-- 新增表情按钮 -->
+          <div class="emoji-container">
+            <button
+              @click="toggleEmojiPicker"
+              class="media-button"
+              title="表情"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24">
+                <path
+                  fill="currentColor"
+                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm10 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-5 3c-1.66 0-3 1.34-3 3h6c0-1.66-1.34-3-3-3z"
+                />
+              </svg>
+            </button>
+            <!-- 表情选择器 -->
+            <div v-if="showEmojiPicker" class="emoji-picker">
+              <div class="emoji-grid">
+                <button
+                  v-for="(emoji, index) in popularEmojis"
+                  :key="index"
+                  @click="selectEmoji(emoji)"
+                  class="emoji-item"
+                >
+                  {{ emoji }}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="input-container">
@@ -193,8 +222,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from "vue";
+import { ref, onMounted, computed, watch, nextTick, onUnmounted } from "vue";
 
+// 添加表情相关状态和逻辑
+const showEmojiPicker = ref(false);
+const popularEmojis = ref([
+  "😀",
+  "😂",
+  "😍",
+  "👍",
+  "❤️",
+  "🙏",
+  "🔥",
+  "🎉",
+  "🤔",
+  "😊",
+  "😎",
+  "🥳",
+  "😢",
+  "🤯",
+  "👏",
+]);
+
+// 切换表情选择器显示状态
+const toggleEmojiPicker = () => {
+  showEmojiPicker.value = !showEmojiPicker.value;
+};
+
+// 选择表情
+const selectEmoji = (emoji: string) => {
+  inputMessage.value += emoji;
+  showEmojiPicker.value = false;
+  // 自动聚焦到输入框
+  nextTick(() => {
+    const input = document.querySelector(".liaotiankuang") as HTMLInputElement;
+    input?.focus();
+  });
+};
+
+// 点击页面其他地方关闭表情选择器
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement;
+  if (!target.closest(".emoji-container")) {
+    showEmojiPicker.value = false;
+  }
+};
+
+// 添加全局点击事件监听
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+});
+
+// 移除事件监听
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
+});
 // 好友列表数据
 const friends = ref([
   {
@@ -706,6 +788,7 @@ class EnhancedChatAI {
       [/坤坤|练习生/, "你干嘛~哎哟"],
       [/你好|哈喽/, "你好"],
       [/周佚泽喜欢去哪吃饭/, "厕所"],
+      [/周佚泽是傻逼吗/, "你猜对了👍"],
       [/周佚泽/, "周佚泽是傻逼"],
       [/你干嘛哎呦/, "树枝666"],
     ];
@@ -760,37 +843,37 @@ const fasongxiaoxi = async () => {
 
   inputMessage.value = "";
 
-// 添加AI回复
-setTimeout(() => {
-  const replyMessage = {
-    // 这里可以分行列出属性，提高可读性
-    sender: "opponent" as const,
-    avatar:
-      friends.value.find((f) => f.id === activeFriendId.value)?.avatar || "",
-    content: aiReply,
-    time: new Date().toLocaleTimeString(),
-    type: "text" as const,
-  };
+  // 添加AI回复
+  setTimeout(() => {
+    const replyMessage = {
+      // 这里可以分行列出属性，提高可读性
+      sender: "opponent" as const,
+      avatar:
+        friends.value.find((f) => f.id === activeFriendId.value)?.avatar || "",
+      content: aiReply,
+      time: new Date().toLocaleTimeString(),
+      type: "text" as const,
+    };
 
-  // 将 AI 回复消息添加到当前好友的聊天历史记录中
-  if (activeFriendId.value!== null) {
-    if (!chatHistories.value[activeFriendId.value]) {
-      chatHistories.value[activeFriendId.value] = [];
+    // 将 AI 回复消息添加到当前好友的聊天历史记录中
+    if (activeFriendId.value !== null) {
+      if (!chatHistories.value[activeFriendId.value]) {
+        chatHistories.value[activeFriendId.value] = [];
+      }
+      chatHistories.value[activeFriendId.value].push(replyMessage);
+
+      // 更新好友的最后一条消息
+      const friendIndex = friends.value.findIndex(
+        (f) => f.id === activeFriendId.value
+      );
+      if (friendIndex !== -1) {
+        friends.value[friendIndex].lastMessage = replyMessage.content;
+        friends.value[friendIndex].lastMessageTime = replyMessage.time;
+      }
     }
-    chatHistories.value[activeFriendId.value].push(replyMessage);
 
-    // 更新好友的最后一条消息
-    const friendIndex = friends.value.findIndex(
-      (f) => f.id === activeFriendId.value
-    );
-    if (friendIndex!== -1) {
-      friends.value[friendIndex].lastMessage = replyMessage.content;
-      friends.value[friendIndex].lastMessageTime = replyMessage.time;
-    }
-  }
-
-  scrollToBottom();
-}, 800);
+    scrollToBottom();
+  }, 800);
 };
 
 // 随机回复消息
@@ -816,22 +899,22 @@ const sortedfriends = computed(() => {
   return friends.value.slice().sort((a, b) => {
     // 定义时间权重
     const timeWeights: Record<string, number> = {
-      "刚刚": 0,
-      "今天": 1,
-      "昨天": 2,
-      "前天": 3,
-      "上周": 4,
+      刚刚: 0,
+      今天: 1,
+      昨天: 2,
+      前天: 3,
+      上周: 4,
     };
-    
+
     // 获取权重值
     const weightA = timeWeights[a.lastMessageTime] || 5;
     const weightB = timeWeights[b.lastMessageTime] || 5;
-    
+
     // 如果都是特殊时间文本
     if (weightA !== 5 && weightB !== 5) {
       return weightA - weightB;
     }
-    
+
     // 尝试解析为时间
     try {
       const timeA = new Date(`2000/01/01 ${a.lastMessageTime}`).getTime();
@@ -1192,5 +1275,60 @@ img {
   -webkit-user-select: none;
   -ms-user-select: none;
   /* pointer-events: none; */
+}
+/* 表情按钮容器 */
+.emoji-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* 表情选择器 */
+.emoji-picker {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  z-index: 100;
+  width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 表情网格布局 */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+/* 单个表情按钮 */
+.emoji-item {
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-item:hover {
+  background-color: #f0f0f0;
+  transform: scale(1.2);
+}
+
+/* 调整媒体按钮区域布局 */
+.media-buttons {
+  display: flex;
+  padding: 5px 0;
+  gap: 10px;
+  align-items: center;
+  position: relative;
 }
 </style>
